@@ -66,42 +66,61 @@ class ViewManager(QObject):
         self._declared_views[plugin_name][view_id] = (name, factory)
 
     def update_view_menu(self):
-
+        """Обновляет меню 'Вид', используя plugin.title для подменю."""
         view_menu = self.ui_manager.get_view_menu()
-        if not view_menu:
-            logger.error("Меню 'Вид' не найдено!")
-            return
+        if not view_menu: logger.error("Меню 'Вид' не найдено!"); return
         logger.debug("ViewManager: Обновление меню 'Вид'...")
-        separator = None
-        actions_to_remove = []
-        for action in view_menu.actions():
-            if action.isSeparator():
-                separator = action
-                break
-            else:
-                actions_to_remove.append(action)
-        for action in actions_to_remove:
-            view_menu.removeAction(action)
+
+        separator = next((act for act in view_menu.actions() if act.isSeparator()), None)
+        if separator is None: logger.error("Разделитель в меню 'Вид' не найден!"); return
+
+        actions_to_remove = [act for act in view_menu.actions() if act != separator and act.text() != "&Сбросить вид"]
+        dynamic_actions = []
+        current_action = view_menu.actions()[0] if view_menu.actions() else None
+        while current_action and current_action != separator:
+            dynamic_actions.append(current_action)
+            # Получаем следующее действие перед удалением текущего
+            next_action = view_menu.actionGeometry(current_action).bottomRight()  # Ненадежно
+            # Более надежный способ - получить список и найти следующее по индексу
+            all_actions = view_menu.actions()
+            try:
+                idx = all_actions.index(current_action)
+                if idx + 1 < len(all_actions):
+                    current_action = all_actions[idx + 1]
+                else:
+                    current_action = None  # Достигли конца
+            except ValueError:
+                current_action = None  # Действие уже удалено?
+
+        for action in dynamic_actions:
+            view_menu.removeAction(action);
             action.deleteLater()
-        if separator is None:
-            logger.error("Разделитель в меню 'Вид' не найден!")
-            return
 
         added_items = False
-        sorted_plugins = sorted(self._declared_views.keys())
         actions_to_insert = []
-        for plugin_name in sorted_plugins:
+        plugin_manager: Optional['PluginManager'] = getattr(self.app_core, 'plugin_manager', None)
+        loaded_plugins_map = plugin_manager.loaded_plugins if plugin_manager else {}
+
+        sorted_plugin_names = sorted(loaded_plugins_map.keys(), key=lambda name: loaded_plugins_map[name].title.lower())
+
+        for plugin_name in sorted_plugin_names:
+            # Проверяем, есть ли у этого плагина объявленные представления
             plugin_views = self._declared_views.get(plugin_name, {})
             if not plugin_views: continue
-            plugin_menu_path = f"Вид/{plugin_name}"
+
+            plugin = loaded_plugins_map[plugin_name]
+            plugin_display_name = plugin.title  # Используем title
+            plugin_menu_path = f"Вид/{plugin_display_name}"  # Путь с отображаемым именем
+
             submenu = self.ui_manager.find_or_create_menu(plugin_menu_path)
-            if not submenu:
-                logger.error(f"Не удалось создать подменю '{plugin_name}' в 'Вид'.")
-                continue
+            if not submenu: logger.error(f"Не удалось создать подменю '{plugin_display_name}' в 'Вид'."); continue
+
             submenu_action = submenu.menuAction()
-            if submenu_action and submenu_action not in actions_to_insert:
-                is_already_in_view_menu = any(a == submenu_action for a in view_menu.actions())
-                if not is_already_in_view_menu: actions_to_insert.append(submenu_action)
+            # Проверяем, нужно ли добавлять действие подменю (если его еще нет перед разделителем)
+            if submenu_action and not any(
+                    a == submenu_action for a in view_menu.actions() if a != separator and a.text() != "&Сбросить вид"):
+                actions_to_insert.append(submenu_action)
+
             submenu.clear()
             sorted_view_ids = sorted(plugin_views.keys())
             for view_id in sorted_view_ids:
@@ -110,12 +129,15 @@ class ViewManager(QObject):
                 action.triggered.connect(partial(self.open_view_by_id, plugin_name, view_id))
                 submenu.addAction(action)
                 added_items = True
+
         if actions_to_insert:
             for action_to_insert in reversed(actions_to_insert): view_menu.insertAction(separator, action_to_insert)
+        # Проверяем, остались ли только статические элементы
         elif not any(not a.isSeparator() and not a.text().endswith("Сбросить вид") for a in view_menu.actions()):
-            no_views_action = QAction("Нет доступных представлений", self.app_core)
+            no_views_action = QAction("Нет доступных представлений", self.app_core);
             no_views_action.setEnabled(False)
             view_menu.insertAction(separator, no_views_action)
+
         logger.debug("ViewManager: Меню 'Вид' обновлено.")
 
     @Slot(str, str)

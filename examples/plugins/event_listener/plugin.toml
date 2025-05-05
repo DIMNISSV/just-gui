@@ -2,3 +2,6 @@
 name = "event_listener"
 entry_point = "listener:ListenerPlugin"
 version = "0.1.0"
+title = "Слушатель событий"
+author = "dimnissv"
+description = "Плагин отображающий в логе изменения счётчика."

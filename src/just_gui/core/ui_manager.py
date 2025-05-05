@@ -215,19 +215,48 @@ class UIManager:
             logger.warning("StatusBar не инициализирован.")
 
     def show_about_dialog(self):
+        """Показывает диалог 'О программе' с информацией о профиле и плагинах."""
         try:
             app_core = cast('AppCore', self.main_window)
-            app_author = app_core.APP_AUTHOR
-            app_name = app_core.APP_NAME
-            from .. import __version__
-        except (ImportError, AttributeError, NameError):
-            __version__ = "N/A"
-            app_author = "Unknown"
-            app_name = "Unknown"
-        QMessageBox.about(self.main_window, "О программе just-gui",
-                          f"<b>{app_name}</b><br>"
-                          f"Версия: {__version__}<br>"
-                          f"Автор профиля: {app_author}<br><br>"
-                          "Модульная платформа для GUI приложений.<br>"
-                          "GitHub: <a href='https://github.com/just-gui/just-gui'>https://github.com/just-gui</a><br>"
-                          "© 2025 DIMNISSV. MIT LICENSE.")
+            profile_meta = app_core.profile_metadata  # Получаем метаданные профиля
+            # --- ИЗМЕНЕНО: Используем title и author из метаданных профиля ---
+            profile_title = profile_meta.get("title", app_core.profile_name)  # Fallback на имя файла
+            profile_author = profile_meta.get("author", app_core.APP_AUTHOR)  # Fallback на константу
+            profile_version = profile_meta.get("version", "N/A")
+            # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+            plugin_manager: Optional['PluginManager'] = getattr(app_core, 'plugin_manager', None)
+            loaded_plugins = plugin_manager.loaded_plugins if plugin_manager else {}
+            from .. import __version__ as lib_version
+        except (ImportError, AttributeError, NameError) as e:
+            logger.error(f"Ошибка получения данных для 'О программе': {e}")
+            lib_version = "N/A";
+            profile_title = "N/A";
+            profile_author = "Unknown";
+            profile_version = "N/A";
+            loaded_plugins = {}
+
+        about_text_lines = [
+            f"<b>just-gui Библиотека</b>",
+            f"Версия: {lib_version}",
+            f"(c) 2025",
+            "<hr>",
+            f"<b>Профиль: {profile_title}</b>",
+            f"Версия: {profile_version}",
+            f"Автор: {profile_author}",
+            f"<br>",
+            f"<b>Загруженные плагины ({len(loaded_plugins)}):</b>"
+        ]
+
+        if loaded_plugins:
+            plugin_list_lines = []
+            sorted_plugins = sorted(loaded_plugins.values(), key=lambda p: p.title.lower())
+            for plugin in sorted_plugins:
+                author_info = f" (Автор: {plugin.author})" if plugin.author else ""
+                plugin_list_lines.append(f"<li><b>{plugin.title}</b> (v{plugin.version}){author_info}</li>")
+            about_text_lines.append(f"<ul>{''.join(plugin_list_lines)}</ul>")
+        else:
+            about_text_lines.append("Нет загруженных плагинов.")
+
+        full_about_text = "<br>".join(about_text_lines)
+        QMessageBox.about(self.main_window, f"О программе: {profile_title}", full_about_text)

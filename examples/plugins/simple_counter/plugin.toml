@@ -2,6 +2,9 @@
 name = "simple_counter"
 entry_point = "simple_counter:CounterPlugin"
 version = "0.1.0"
+title = "Простой Счетчик"
+author = "dimnissv"
+description = "Плагин с кнопками для увеличения/уменьшения значения."
 
 [dependencies] # Пример пустой зависимости
 # another_plugin = ">=1.0"

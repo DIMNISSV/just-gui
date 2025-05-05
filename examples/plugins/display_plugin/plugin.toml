@@ -2,6 +2,9 @@
 name = "display_plugin"
 entry_point = "display_plugin:DisplayPlugin"
 version = "0.2.0"
+title = "Отображатель счётчика"
+author = "dimnissv"
+description = "Плагин отображающий в новой вкладке изменения счётчика."
 
 # Указываем зависимость от simple_counter, чтобы он загрузился первым
 # (Хотя StateManager и так позволяет работать без строгой зависимости)

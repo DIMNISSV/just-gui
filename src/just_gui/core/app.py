@@ -36,6 +36,7 @@ class AppCore(QMainWindow):
         self.profile_path = Path(profile_path)
         self.profile_name = self.profile_path.stem
         self.config: Dict = {}
+        self.profile_metadata: Dict = {}
 
         logger.debug(f"AppCore ({self.profile_name}): Initializing...")
 
@@ -52,7 +53,8 @@ class AppCore(QMainWindow):
 
         theme = self.config.get("theme", "light")
         apply_theme(self, theme)
-        self.setWindowTitle(f"just-gui: {self.profile_name}")
+        profile_title = self.profile_metadata.get("title", self.profile_name)
+        self.setWindowTitle(f"just-gui: {profile_title}")
         logger.debug(f"AppCore ({self.profile_name}): __init__ complete.")
 
     async def initialize(self):
@@ -103,7 +105,7 @@ class AppCore(QMainWindow):
                 return
             profile_data = load_toml(self.profile_path)
             self.config = profile_data.get("config", {})
-            logger.info(f"Загружена конфигурация: {self.config}")
+            self.profile_metadata = profile_data.get("profile_metadata", {})
             log_level_str = self.config.get("log_level", "INFO").upper()
             try:
                 log_level = getattr(logging, log_level_str, logging.INFO)

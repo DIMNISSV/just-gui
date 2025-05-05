@@ -29,6 +29,9 @@ class PluginContext:
     event_bus: 'EventBus'
     app_core: 'AppCore'  # Доступ к ядру для регистрации UI и других действий
     plugin_permissions: Dict[str, Any] = field(default_factory=dict)  # Разрешения из plugin.toml[permissions]
+    plugin_title: Optional[str] = None  # Отображаемое имя (из metadata.title)
+    plugin_author: Optional[str] = None  # Автор плагина (из metadata.author)
+    plugin_description: Optional[str] = None  # Описание (из metadata.description)
 
     def get_config(self, key: str, default: Any = None) -> Any:
         """Удобный метод для получения конфигурации плагина."""
@@ -88,6 +91,10 @@ class BasePlugin(ABC):
         self._app = context.app_core  # Удобный доступ
         self._config = context.plugin_config  # Удобный доступ
         self._permissions = context.plugin_permissions  # Удобный доступ
+        self.title = context.plugin_title if context.plugin_title else self.name
+        self.author = context.plugin_author
+        self.description = context.plugin_description
+
         logger.info(f"Инициализирован плагин: {self.name} v{self.version}")
 
     def get_config(self, key: str, default: Any = None) -> Any:
