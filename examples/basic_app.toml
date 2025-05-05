@@ -1,0 +1,21 @@
+# examples/basic_app.toml
+
+[plugins]
+local = [
+    "./plugins/simple_counter",
+    "./plugins/event_listener",
+    "./plugins/display_plugin"
+]
+
+
+[config]
+theme = "light" # или "dark"
+log_level = "DEBUG"
+
+[plugin_configs.simple_counter]
+initial_value = 10
+step = 2
+
+# Секция зависимостей (пока не используется для сортировки)
+# [plugins.dependencies]
+# simple_counter = "0.1.0"

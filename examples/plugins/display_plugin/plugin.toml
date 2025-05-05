@@ -1,0 +1,9 @@
+[metadata]
+name = "display_plugin"
+entry_point = "display_plugin:DisplayPlugin"
+version = "0.1.0"
+
+# Указываем зависимость от simple_counter, чтобы он загрузился первым
+# (Хотя StateManager и так позволяет работать без строгой зависимости)
+# [dependencies]
+# simple_counter = ">=0.1.0"

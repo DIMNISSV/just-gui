@@ -1,0 +1,4 @@
+[metadata]
+name = "event_listener"
+entry_point = "listener:ListenerPlugin"
+version = "0.1.0"
