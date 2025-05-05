@@ -5,32 +5,32 @@ from typing import Any, Dict
 
 
 class ConfigError(Exception):
-    """Ошибка при загрузке или парсинге конфигурации."""
+    """Error during configuration loading or parsing."""
     pass
 
 
 def load_toml(file_path: Path) -> Dict[str, Any]:
     """
-    Загружает и парсит TOML файл.
+    Loads and parses a TOML file.
 
     Args:
-        file_path: Путь к TOML файлу.
+        file_path: Path to the TOML file.
 
     Returns:
-        Словарь с данными из файла.
+        Dictionary with data from the file.
 
     Raises:
-        FileNotFoundError: Если файл не найден.
-        ConfigError: Если произошла ошибка парсинга TOML.
-        Exception: Другие возможные ошибки чтения файла.
+        FileNotFoundError: If the file is not found.
+        ConfigError: If a TOML parsing error occurred.
+        Exception: Other possible file reading errors.
     """
     if not file_path.is_file():
-        raise FileNotFoundError(f"Файл конфигурации не найден: {file_path}")
+        raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return toml.load(f)
     except toml.TomlDecodeError as e:
-        raise ConfigError(f"Ошибка парсинга TOML файла {file_path}: {e}") from e
+        raise ConfigError(f"Error parsing TOML file {file_path}: {e}") from e
     except IOError as e:
-        raise ConfigError(f"Ошибка чтения файла {file_path}: {e}") from e
+        raise ConfigError(f"Error reading file {file_path}: {e}") from e

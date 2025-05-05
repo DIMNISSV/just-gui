@@ -3,7 +3,7 @@ import logging
 import threading
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from collections import defaultdict
-import fnmatch  # Для подписки на паттерны
+import fnmatch
 
 from .history import HistoryManager, Command
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class StateChangeCommand(Command):
-    """Команда для изменения состояния, поддерживающая undo."""
+    """Command for state change, supporting undo."""
 
     def __init__(self, state_manager: 'StateManager', key: str, new_value: Any, old_value: Any, description: str = ""):
         super().__init__(description or f"Set {key}")
@@ -29,15 +29,15 @@ class StateChangeCommand(Command):
 
 class StateManager:
     """
-    Управляет состоянием приложения, обеспечивает реактивность и историю изменений.
-    Пока без сложной потокобезопасности (RW Lock), используется простой Lock.
+    Manages application state, provides reactivity and change history.
+    Simple Lock is used for now, without complex thread safety (RW Lock).
     """
 
     def __init__(self, history_manager: Optional[HistoryManager] = None):
         self._state: Dict[str, Any] = {}
         self._subscribers: Dict[str, List[Callable[[Any], None]]] = defaultdict(list)
         self._wildcard_subscribers: Dict[str, List[Callable[[Any], None]]] = defaultdict(list)
-        self._lock = threading.Lock()  # Простой Lock для начала
+        self._lock = threading.Lock()
         self._history_manager = history_manager or HistoryManager()
 
     @property
@@ -45,7 +45,7 @@ class StateManager:
         return self._history_manager
 
     def _get_value_by_key(self, data: Dict, key_parts: List[str]) -> Any:
-        """Вспомогательная функция для получения вложенного значения."""
+        """Helper function to get nested value."""
         current = data
         for part in key_parts:
             if isinstance(current, dict) and part in current:
@@ -53,33 +53,30 @@ class StateManager:
             elif isinstance(current, list) and part.isdigit() and int(part) < len(current):
                 current = current[int(part)]
             else:
-                raise KeyError(f"Ключ '{'.'.join(key_parts)}' не найден (ошибка на '{part}')")
+                raise KeyError(f"Key '{'.'.join(key_parts)}' not found (error at '{part}')")
         return current
 
     def _set_value_by_key(self, data: Dict, key_parts: List[str], value: Any) -> Tuple[Dict, Any]:
         """
-        Вспомогательная функция для установки вложенного значения.
-        Возвращает измененный корневой словарь и старое значение.
-        Создает вложенные словари при необходимости.
+        Helper function to set nested value.
+        Returns the modified root dictionary and the old value.
+        Creates nested dictionaries if needed.
         """
         current = data
         old_value = None
         for i, part in enumerate(key_parts[:-1]):
             if part not in current or not isinstance(current[part], dict):
-                # Если ключа нет или он не словарь, создаем новый словарь
-                # Это изменение! Нужно копировать, если хотим иммутабельности
-                # Для простоты пока мутируем на месте
                 current[part] = {}
             current = current[part]
 
         last_key = key_parts[-1]
-        old_value = current.get(last_key)  # Получаем старое значение
-        current[last_key] = value  # Устанавливаем новое
+        old_value = current.get(last_key)
+        current[last_key] = value
         return data, old_value
 
     def get(self, key: str, default: Any = None) -> Any:
         """
-        Получает значение из состояния по ключу (поддерживает вложенность через '.').
+        Gets state value by key (supports nesting via '.').
         """
         with self._lock:
             try:
@@ -91,54 +88,50 @@ class StateManager:
             except KeyError:
                 return default
             except Exception as e:
-                logger.error(f"Ошибка при получении ключа '{key}': {e}", exc_info=True)
+                logger.error(f"Error getting key '{key}': {e}", exc_info=True)
                 return default
 
     def set(self, key: str, value: Any, description: Optional[str] = None):
         """
-        Устанавливает значение в состояние по ключу (поддерживает вложенность через '.').
-        Записывает изменение в историю и уведомляет подписчиков.
+        Sets state value by key (supports nesting via '.').
+        Records change in history and notifies subscribers.
         """
         with self._lock:
             self._set_value(key, value, record_history=True, description=description)
 
     def _set_value(self, key: str, value: Any, record_history: bool, description: Optional[str] = None):
-        """Внутренний метод установки значения."""
+        """Internal method for setting value."""
         old_value = None
         try:
             if '.' not in key:
                 old_value = self._state.get(key)
-                if old_value == value: return  # Не делать ничего, если значение не изменилось
+                if old_value == value: return
                 self._state[key] = value
             else:
                 key_parts = key.split('.')
-                # Получаем старое значение перед модификацией
                 try:
                     old_value = self._get_value_by_key(self._state, key_parts)
                 except KeyError:
-                    old_value = None  # Значения раньше не было
+                    old_value = None
 
-                if old_value == value: return  # Значение не изменилось
+                if old_value == value: return
 
-                # В _set_value_by_key происходит мутация словаря _state
                 self._state, _ = self._set_value_by_key(self._state, key_parts, value)
 
             logger.debug(f"State changed: '{key}' set to '{value}' (was '{old_value}')")
 
-            # Запись в историю (если нужно)
             if record_history and self._history_manager:
                 cmd = StateChangeCommand(self, key, value, old_value, description)
                 self._history_manager.add_command(cmd)
 
-            # Уведомление подписчиков
             self._notify_subscribers(key, value)
 
         except Exception as e:
-            logger.error(f"Ошибка при установке ключа '{key}': {e}", exc_info=True)
+            logger.error(f"Error setting key '{key}': {e}", exc_info=True)
 
     def subscribe(self, key_pattern: str, handler: Callable[[Any], None]):
         """
-        Подписывает обработчик на изменения значения по ключу или паттерну (с '*').
+        Subscribes a handler to value changes by key or pattern (with '*').
         """
         with self._lock:
             if '*' in key_pattern:
@@ -148,12 +141,8 @@ class StateManager:
                 self._subscribers[key_pattern].append(handler)
                 logger.debug(f"Handler {handler.__name__} subscribed to key '{key_pattern}'")
 
-            # Опционально: немедленно вызвать обработчик с текущим значением?
-            # current_value = self.get(key_pattern) # Не сработает для wildcard
-            # if current_value is not None: handler(current_value)
-
     def unsubscribe(self, key_pattern: str, handler: Callable[[Any], None]):
-        """Отписывает обработчик от ключа или паттерна."""
+        """Unsubscribes a handler from a key or pattern."""
         with self._lock:
             removed = False
             if '*' in key_pattern:
@@ -164,7 +153,7 @@ class StateManager:
                             del self._wildcard_subscribers[key_pattern]
                         removed = True
                     except ValueError:
-                        pass  # Handler not found
+                        pass
             else:
                 if key_pattern in self._subscribers:
                     try:
@@ -173,7 +162,7 @@ class StateManager:
                             del self._subscribers[key_pattern]
                         removed = True
                     except ValueError:
-                        pass  # Handler not found
+                        pass
 
             if removed:
                 logger.debug(f"Handler {handler.__name__} unsubscribed from '{key_pattern}'")
@@ -181,21 +170,16 @@ class StateManager:
                 logger.warning(f"Handler {handler.__name__} not found for '{key_pattern}' during unsubscribe")
 
     def _notify_subscribers(self, changed_key: str, new_value: Any):
-        """Уведомляет всех релевантных подписчиков об изменении."""
+        """Notifies all relevant subscribers about the change."""
         handlers_to_call: List[Callable[[Any], None]] = []
 
-        # Точные совпадения
         if changed_key in self._subscribers:
             handlers_to_call.extend(self._subscribers[changed_key])
 
-        # Wildcard совпадения (используем fnmatch)
         for pattern, handlers in self._wildcard_subscribers.items():
             if fnmatch.fnmatch(changed_key, pattern):
                 handlers_to_call.extend(handlers)
 
-        # Вызов обработчиков
-        # Пока синхронно, т.к. StateManager обычно используется из GUI потока
-        # TODO: Рассмотреть асинхронный вызов или запуск в отдельном потоке для долгих обработчиков
         logger.debug(f"Notifying {len(handlers_to_call)} subscribers about change in '{changed_key}'")
         for handler in handlers_to_call:
             try:

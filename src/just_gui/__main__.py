@@ -1,7 +1,7 @@
 # src/just_gui/__main__.py
 """
-Точка входа для запуска пакета just_gui как скрипта.
-Пример: python -m just_gui --profile my_app.toml
+The entrance point for launching the Just_gui package as a script.
+Example: python -m just_gui --profile my_app.toml
 """
 from .core import cli
 
