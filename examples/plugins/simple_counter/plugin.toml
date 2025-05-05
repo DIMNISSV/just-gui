@@ -1,6 +1,6 @@
 [metadata]
 name = "simple_counter"
-entry_point = "counter:CounterPlugin"
+entry_point = "simple_counter:CounterPlugin"
 version = "0.1.0"
 
 [dependencies] # Пример пустой зависимости

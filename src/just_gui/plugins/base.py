@@ -2,15 +2,21 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Callable  # Добавили Callable
+
+# Импортируем QWidget для type hinting фабрики
+from PySide6.QtWidgets import QWidget
 
 # Предотвращение циклических импортов с помощью TYPE_CHECKING
 if TYPE_CHECKING:
     from ..state.manager import StateManager
     from ..events.bus import EventBus
-    from ..core.app import AppCore  # Нужен для регистрации UI
+    from ..core.app import AppCore
 
 logger = logging.getLogger(__name__)
+
+# --- Новый тип: Фабричный метод для создания виджета представления ---
+ViewFactory = Callable[[], QWidget]
 
 
 @dataclass
@@ -22,18 +28,10 @@ class PluginContext:
     state_manager: 'StateManager'
     event_bus: 'EventBus'
     app_core: 'AppCore'  # Доступ к ядру для регистрации UI и других действий
-    # --- ИСПРАВЛЕНИЕ: Добавлено поле для разрешений ---
     plugin_permissions: Dict[str, Any] = field(default_factory=dict)  # Разрешения из plugin.toml[permissions]
-
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
-    # Можно добавить другие общие ресурсы/сервисы
-    # Например:
-    # resource_manager: ResourceManager # Для доступа к иконкам, файлам плагина
 
     def get_config(self, key: str, default: Any = None) -> Any:
         """Удобный метод для получения конфигурации плагина."""
-        # Доступ через точку или напрямую
         keys = key.split('.')
         value = self.plugin_config
         try:
@@ -41,7 +39,6 @@ class PluginContext:
                 if isinstance(value, dict):
                     value = value[k]
                 else:
-                    # Если ключ не найден на промежуточном этапе или значение не словарь
                     logger.debug(
                         f"Ключ '{k}' не найден или не является словарем в конфигурации плагина '{self.plugin_name}' при поиске '{key}'")
                     return default
@@ -71,7 +68,7 @@ class PluginContext:
         #         current_perms = current_perms[part]
         #     last_part = permission_parts[-1]
         #     # Логика проверки значения (может быть bool, список путей, и т.д.)
-        #     return last_part in current_perms # Очень упрощенно
+        #     # return last_part in current_perms # Очень упрощенно
         # except (KeyError, TypeError):
         #      return False
         return True  # ЗАГЛУШКА
@@ -107,7 +104,7 @@ class BasePlugin(ABC):
         """
         Вызывается после успешной загрузки плагина.
         Здесь следует выполнять инициализацию, подписку на события,
-        регистрацию UI компонентов.
+        объявление представлений и регистрацию действий в меню/тулбаре.
         """
         logger.debug(f"Плагин '{self.name}': Вызван on_load()")
         pass
@@ -115,16 +112,30 @@ class BasePlugin(ABC):
     def on_unload(self):
         """
         Вызывается перед выгрузкой плагина.
-        Здесь следует выполнять очистку ресурсов, отписку от событий,
-        удаление UI компонентов.
+        Здесь следует выполнять очистку ресурсов, отписку от событий.
+        Виджеты представлений будут удалены AppCore.
         """
         logger.debug(f"Плагин '{self.name}': Вызван on_unload()")
         pass
 
-    # --- Методы регистрации UI (делегируют вызовы AppCore) ---
-    # Примеры, конкретная реализация зависит от AppCore
+    # --- НОВЫЙ МЕТОД: Объявление представления ---
+    def declare_view(self, view_id: str, name: str, factory: ViewFactory):
+        """
+        Объявляет представление (виджет), которое может быть открыто пользователем
+        (например, как вкладка или док-виджет).
+
+        Args:
+            view_id: Уникальный идентификатор представления в рамках плагина (e.g., "main_editor").
+            name: Имя, отображаемое пользователю (e.g., "Редактор").
+            factory: Функция (без аргументов), которая создает и возвращает
+                     новый экземпляр QWidget для этого представления.
+        """
+        logger.debug(f"Плагин '{self.name}': Объявление представления view_id='{view_id}', name='{name}'")
+        self._app.declare_view(self.name, view_id, name, factory)
+
+    # --- Старые методы регистрации UI (теперь для действий, а не представлений) ---
     def register_menu_action(self, menu_path: str, action):  # action - это QAction
-        """Регистрирует действие в главном меню."""
+        """Регистрирует действие плагина в главном меню."""
         logger.debug(f"Плагин '{self.name}': Регистрация действия меню '{menu_path}'")
         # Проверка типа action для предотвращения ошибок
         if not hasattr(action, 'triggered'):  # Простая проверка на QAction-подобный объект
@@ -140,16 +151,6 @@ class BasePlugin(ABC):
         # Добавляем имя плагина как префикс к секции для избежания конфликтов
         full_section = f"{self.name}/{section_name}"
         self._app.register_toolbar_widget(full_section, widget)
-
-    def register_tab(self, name: str, widget):  # widget - QWidget
-        """Регистрирует новую вкладку в центральной области."""
-        logger.debug(f"Плагин '{self.name}': Регистрация вкладки '{name}'")
-        # Проверка типа widget
-        if not hasattr(widget, 'metaObject'):  # Простая проверка на QWidget-подобный объект
-            logger.error(
-                f"Плагин '{self.name}': Попытка зарегистрировать не QWidget как вкладку '{name}'. Тип: {type(widget)}")
-            return
-        self._app.register_tab(self.name, name, widget)
 
     def update_status(self, message: str, timeout: int = 0):
         """Обновляет сообщение в строке состояния."""
