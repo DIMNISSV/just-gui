@@ -51,6 +51,8 @@ class AppCore(QMainWindow):
             app_core=self, state_manager=self.state_manager, event_bus=self.event_bus
         )
 
+        self.current_language: str = "en"
+
         theme = self.config.get("theme", "light")
         apply_theme(self, theme)
         profile_title = self.profile_metadata.get("title", self.profile_name)
@@ -59,7 +61,7 @@ class AppCore(QMainWindow):
 
     async def initialize(self):
         """Асинхронная инициализация."""
-        logger.info(f"AppCore ({self.profile_name}): Starting async initialization...")
+        logger.info(f"AppCore ({self.profile_name}): Starting async initialization using language '{self.current_language}'...")
         critical_error = None
         try:
             await self.plugin_manager.load_profile(str(self.profile_path))
@@ -72,11 +74,9 @@ class AppCore(QMainWindow):
             # Пытаемся загрузить состояние вида
             view_loaded = self.view_manager.load_view_state()  # Теперь возвращает bool
 
-            # --- ИЗМЕНЕНО: Открываем все вкладки, если вид не был загружен ---
             if not view_loaded:
                 logger.info("Сохраненный вид не найден или пуст. Открытие всех доступных представлений по умолчанию...")
                 self.view_manager.open_all_declared_views()
-            # --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
         except Exception as e:
             logger.error(f"Ошибка при обновлении/загрузке вида: {e}", exc_info=True)

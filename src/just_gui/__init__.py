@@ -10,7 +10,7 @@ from .state.manager import StateManager
 from .events.bus import EventBus
 from .security.decorators import require_permission  # Пока заглушка
 
-__version__ = "0.1.0-beta"
+__version__ = "0.2.0-beta"
 
 __all__ = [
     "AppCore",
