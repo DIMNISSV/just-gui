@@ -5,127 +5,127 @@ import logging
 import sys
 from PySide6.QtWidgets import QApplication, QMessageBox
 import qasync
-# from platformdirs import user_config_dir # Можно импортировать здесь, но используется в AppCore
+# from platformdirs import user_config_dir # Can import here, but used in AppCore
 
-from .app import AppCore, APP_NAME, APP_AUTHOR  # <-- Импортируем константы
+from .app import AppCore, APP_NAME, APP_AUTHOR  # <-- Import constants
 
 
-# Настройка базового логирования (можно вынести в отдельную функцию)
+# Basic logging setup (can be moved to a separate function)
 def setup_logging():
-    # Настраиваем корневой логгер
+    # Configure the root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING)  # По умолчанию для других библиотек - WARNING
+    root_logger.setLevel(logging.WARNING)  # Default for other libraries - WARNING
 
-    # Настраиваем логгер нашего приложения
+    # Configure our application logger
     app_logger = logging.getLogger('just_gui')
-    # Уровень установится позже из конфига, пока ставим DEBUG, чтобы видеть логи AppCore.__init__
+    # Level will be set later from config, for now set DEBUG to see AppCore.__init__ logs
     app_logger.setLevel(logging.DEBUG)
-    app_logger.propagate = False  # Не передавать сообщения корневому
+    app_logger.propagate = False  # Do not propagate messages to root
 
-    # Создаем обработчик для вывода в консоль
+    # Create a handler for console output
     handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
 
-    # Добавляем обработчик к нашему логгеру
+    # Add the handler to our logger
     if not app_logger.handlers:
         app_logger.addHandler(handler)
 
-    # Можно добавить FileHandler при необходимости
+    # Can add a FileHandler if needed
     # file_handler = logging.FileHandler("app.log")
     # file_handler.setFormatter(formatter)
     # app_logger.addHandler(file_handler)
 
 
-setup_logging()  # Вызываем настройку логирования при загрузке модуля
-logger = logging.getLogger(__name__)  # Получаем логгер для cli (__name__ будет 'just_gui.core.cli')
+setup_logging()  # Call logging setup when the module is loaded
+logger = logging.getLogger(__name__)  # Get logger for cli (__name__ will be 'just_gui.core.cli')
 
 
 def main():
-    """Главная функция запуска приложения."""
-    parser = argparse.ArgumentParser(description="Запуск just-gui приложения.")
+    """Main function to run the application."""
+    parser = argparse.ArgumentParser(description="Run the just-gui application.")
     parser.add_argument(
         "--profile",
         type=str,
         required=True,
-        help="Путь к файлу профиля приложения (*.toml)",
+        help="Path to the application profile file (*.toml)",
     )
     args = parser.parse_args()
 
-    logger.info(f"Запуск just-gui с профилем: {args.profile}")
+    logger.info(f"Starting just-gui with profile: {args.profile}")
 
-    # Создание QApplication ДО event loop'а qasync
-    # Используем try...except для QApplication, т.к. оно может уже существовать
+    # Creating QApplication BEFORE the qasync event loop
+    # Use try...except for QApplication as it might already exist
     try:
         qapp = QApplication.instance()
         if qapp is None:
-            logger.debug("Создание нового экземпляра QApplication.")
-            # Передаем sys.argv в QApplication
+            logger.debug("Creating a new QApplication instance.")
+            # Pass sys.argv to QApplication
             qapp = QApplication(sys.argv)
         else:
-            logger.debug("Использование существующего экземпляра QApplication.")
+            logger.debug("Using an existing QApplication instance.")
     except Exception as e:
-        print(f"Критическая ошибка при создании QApplication: {e}", file=sys.stderr)
+        print(f"Critical error creating QApplication: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Настройка qasync
+    # Setup qasync
     loop = qasync.QEventLoop(qapp)
     asyncio.set_event_loop(loop)
-    app_core = None  # Инициализируем переменную
+    app_core = None  # Initialize the variable
 
     try:
-        # --- Шаг 1: Создание экземпляра AppCore (синхронно) ---
-        logger.debug("Создание экземпляра AppCore...")
+        # --- Step 1: Create AppCore instance (synchronous) ---
+        logger.debug("Creating AppCore instance...")
         app_core = AppCore(profile_path=args.profile)
-        logger.debug("Экземпляр AppCore создан.")
+        logger.debug("AppCore instance created.")
 
-        # --- Шаг 2: Асинхронная инициализация (загрузка плагинов, восстановление вида) ---
-        logger.debug("Запуск асинхронной инициализации AppCore...")
-        # Используем loop.run_until_complete для выполнения async initialize()
-        # до старта основного цикла
+        # --- Step 2: Asynchronous initialization (plugin loading, view restoration) ---
+        logger.debug("Starting asynchronous AppCore initialization...")
+        # Use loop.run_until_complete to execute async initialize()
+        # before starting the main loop
         loop.run_until_complete(app_core.initialize())
-        logger.debug("Асинхронная инициализация AppCore завершена.")
+        logger.debug("Asynchronous AppCore initialization finished.")
 
-        # --- Шаг 3: Показ окна ---
-        logger.debug("Отображение главного окна...")
+        # --- Step 3: Show the window ---
+        logger.debug("Displaying the main window...")
         app_core.show()
-        logger.debug("Главное окно отображено.")
+        logger.debug("Main window displayed.")
 
-        # --- Шаг 4: Запуск главного цикла событий ---
+        # --- Step 4: Start the main event loop ---
         with loop:
-            logger.info("Запуск основного цикла событий...")
-            loop.run_forever()  # Запускаем бесконечный цикл событий Qt
+            logger.info("Starting the main event loop...")
+            loop.run_forever()  # Start the infinite Qt event loop
 
-        logger.info("Основной цикл событий завершен.")
-        # Код после loop.run_forever() выполнится после закрытия приложения (когда окно закроется)
+        logger.info("Main event loop finished.")
+        # Code after loop.run_forever() will execute after the application closes (when the window is closed)
 
     except Exception as e:
-        logger.critical(f"Необработанное исключение на верхнем уровне: {e}", exc_info=True)
-        # Показываем критическую ошибку пользователю, если GUI еще работает
+        logger.critical(f"Unhandled top-level exception: {e}", exc_info=True)
+        # Show critical error to user if GUI is still running
         try:
-            # QMainWindow может быть недоступен, используем None в качестве родителя
+            # QMainWindow might be unavailable, use None as parent
             QMessageBox.critical(
-                None,  # Нет родительского окна, т.к. app_core мог не создаться/быть поврежден
-                "Критическая ошибка",
-                f"Произошла непредвиденная ошибка:\n{e}\n\nПриложение будет закрыто."
+                None,  # No parent window as app_core might not have been created/is damaged
+                "Critical Error",
+                f"An unexpected error occurred:\n{e}\n\nThe application will close."
             )
-            # Убедимся, что приложение Qt завершается после показа ошибки
+            # Ensure the Qt application quits after showing the error
             if qapp:
-                qapp.quit()  # Попытка завершить приложение Qt
+                qapp.quit()  # Attempting to quit Qt application
         except Exception as msg_e:
-            # Если даже QMessageBox не сработал, выводим в stderr
-            print(f"Критическая ошибка приложения: {e}\nОшибка показа сообщения об ошибке: {msg_e}", file=sys.stderr)
-        sys.exit(1)  # Выход с кодом ошибки
+            # If even QMessageBox didn't work, print to stderr
+            print(f"Application critical error: {e}\nError showing error message: {msg_e}", file=sys.stderr)
+        sys.exit(1)  # Exit with error code
     finally:
-        # Очистка asyncio loop (рекомендуется)
-        # Проверяем состояние цикла перед закрытием
+        # Clean up asyncio loop (recommended)
+        # Check loop state before closing
         if loop.is_running():
-            logger.debug("Остановка цикла событий asyncio перед закрытием...")
-            loop.stop()  # Остановка, если вдруг run_forever завершился иначе
-        logger.debug("Закрытие цикла событий asyncio...")
+            logger.debug("Stopping asyncio event loop before closing...")
+            loop.stop()  # Stop, if run_forever somehow finished otherwise
+        logger.debug("Closing asyncio event loop...")
         loop.close()
-        logger.info("Цикл событий asyncio закрыт.")
-        # sys.exit(0) # Нормальный выход, если не было ошибок (уже происходит через app.exec())
+        logger.info("Asyncio event loop closed.")
+        # sys.exit(0) # Normal exit if no errors occurred (already happens via app.exec())
 
 
 if __name__ == "__main__":

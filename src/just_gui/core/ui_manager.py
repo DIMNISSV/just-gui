@@ -5,9 +5,9 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QTabWidget, QToolBar, QStatusBar,
     QMenuBar, QMessageBox, QMenu
 )
-from PySide6.QtGui import QAction, QIcon  # Импорт из QtGui
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtCore import QSize
-# Импорт cast
+
 from typing import cast
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class UIManager:
-    """Управляет основными элементами UI, меню и тулбарами."""
+    """Manages core UI elements, menus, and toolbars."""
 
     def __init__(self, main_window: QMainWindow):
         self.main_window = main_window
@@ -30,15 +30,15 @@ class UIManager:
         self._view_menu: Optional[QMenu] = None
 
     def initialize_ui(self):
-        """Инициализирует основные элементы UI главного окна."""
-        logger.debug("UIManager: Инициализация UI...")
+        """Initializes the main UI elements of the main window."""
+        logger.debug("UIManager: Initializing UI...")
         if not isinstance(self.main_window, QMainWindow):
-            logger.error("UIManager ожидает QMainWindow!")
+            logger.error("UIManager expects a QMainWindow!")
             return
 
         self.menu_bar = self.main_window.menuBar()
         if not self.menu_bar:
-            logger.error("Не удалось получить QMenuBar!")
+            logger.error("Failed to get QMenuBar!")
             return
 
         self.tool_bar = QToolBar("Main Toolbar", self.main_window)
@@ -53,44 +53,44 @@ class UIManager:
 
         self.status_bar = QStatusBar(self.main_window)
         self.main_window.setStatusBar(self.status_bar)
-        self.update_status("Инициализация...", 0)
+        self.update_status("Initializing...", 0)
 
         self._setup_default_menus()
-        logger.debug("UIManager: UI инициализирован.")
+        logger.debug("UIManager: UI initialized.")
 
     def _setup_default_menus(self):
-        """Создает базовые пункты меню и кэширует их."""
+        """Creates basic menu items and caches them."""
         assert self.menu_bar is not None
 
-        file_menu = self.menu_bar.addMenu("&Файл")
+        file_menu = self.menu_bar.addMenu("&File")
         self._all_menus_cache["Файл"] = file_menu
         exit_icon = QIcon.fromTheme("application-exit")
-        exit_action = QAction(exit_icon, "&Выход", self.main_window)
+        exit_action = QAction(exit_icon, "&Exit", self.main_window)
         exit_action.triggered.connect(self.main_window.close)
-        file_menu.addAction(exit_action)  # Добавляем Выход в конец
+        file_menu.addAction(exit_action)  # Add Exit to the end
 
-        self._view_menu = self.menu_bar.addMenu("&Вид")
+        self._view_menu = self.menu_bar.addMenu("&View")
         self._all_menus_cache["Вид"] = self._view_menu
 
-        tools_menu = self.menu_bar.addMenu("&Инструменты")
+        tools_menu = self.menu_bar.addMenu("&Tools")
         self._all_menus_cache["Инструменты"] = tools_menu
 
-        help_menu = self.menu_bar.addMenu("&Помощь")
+        help_menu = self.menu_bar.addMenu("&Help")
         self._all_menus_cache["Помощь"] = help_menu
         about_icon = QIcon.fromTheme("help-about")
-        about_action = QAction(about_icon, "&О программе", self.main_window)
+        about_action = QAction(about_icon, "&About", self.main_window)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
 
     def get_view_menu(self) -> Optional[QMenu]:
-        """Возвращает ссылку на меню 'Вид'."""
+        """Returns a reference to the 'View' menu."""
         return self._view_menu
 
     def find_or_create_menu(self, menu_path: str) -> Optional[QMenu]:
-        """Находит или создает меню/подменю."""
+        """Finds or creates a menu/submenu."""
         full_path = menu_path.strip('/')
         if not full_path:
-            logger.error("Пустой путь к меню.")
+            logger.error("Empty menu path.")
             return None
 
         if full_path in self._all_menus_cache:
@@ -100,7 +100,7 @@ class UIManager:
                 logger.debug(f"Cache hit: '{full_path}'")
                 return cached_menu
             except RuntimeError:
-                logger.warning(f"Кэш '{full_path}' удален.")
+                logger.warning(f"Cache '{full_path}' removed.")
                 del self._all_menus_cache[full_path]
 
         parts = full_path.split('/')
@@ -119,7 +119,7 @@ class UIManager:
 
         if current_menu_obj is None:
             if not self.menu_bar:
-                logger.error("MenuBar не инициализирован.")
+                logger.error("MenuBar not initialized.")
                 return None
             found_root = None
             for action in self.menu_bar.actions():
@@ -135,7 +135,7 @@ class UIManager:
             if current_menu_obj:
                 self._all_menus_cache[current_path_part] = current_menu_obj
             else:
-                logger.error(f"Не удалось создать корневое меню '{root_name}'")
+                logger.error(f"Failed to create root menu '{root_name}'")
                 return None
 
         for i in range(1, len(parts)):
@@ -160,7 +160,7 @@ class UIManager:
                             found_submenu = submenu
                             break
                         except RuntimeError:
-                            logger.warning(f"Удаленное подменю '{part_name}'.")
+                            logger.warning(f"Removed submenu '{part_name}'.")
                             current_menu_obj.removeAction(action)
                             action.deleteLater()
                 if found_submenu:
@@ -171,35 +171,35 @@ class UIManager:
                 if next_menu_obj:
                     self._all_menus_cache[current_path_part] = next_menu_obj
                 else:
-                    logger.error(f"Не удалось создать подменю '{part_name}'")
+                    logger.error(f"Failed to create submenu '{part_name}'")
                     return None
             current_menu_obj = next_menu_obj
         return current_menu_obj
 
-    # --- API для плагинов ---
+    # --- API for plugins ---
     def register_menu_action(self, plugin_name: str, menu_path: str, action: QAction):
         target_menu = self.find_or_create_menu(menu_path)
         if target_menu:
             action_text = action.text().replace('&', '')
             logger.debug(
-                f"Добавление действия '{action_text}' в меню '{target_menu.title().replace('&', '')}' (плагин: {plugin_name})")
+                f"Adding action '{action_text}' to menu '{target_menu.title().replace('&', '')}' (plugin: {plugin_name})")
             for existing_action in target_menu.actions():
                 if existing_action.text() == action.text():
                     logger.warning(
-                        f"Действие '{action_text}' уже есть в меню '{target_menu.title().replace('&', '')}'. Пропуск.")
+                        f"Action '{action_text}' already exists in menu '{target_menu.title().replace('&', '')}'. Skipping.")
                     return
             target_menu.addAction(action)
         else:
-            logger.error(f"Плагин '{plugin_name}': Не удалось найти/создать меню '{menu_path}' для действия.")
+            logger.error(f"Plugin '{plugin_name}': Failed to find/create menu '{menu_path}' for action.")
 
     def register_toolbar_widget(self, section_path: str, widget: QWidget):
         target_toolbar = self.tool_bar
         if not target_toolbar:
-            logger.error("Тулбар не инициализирован.")
+            logger.error("Toolbar not initialized.")
             return
         widget_text = getattr(widget, 'text', type(widget).__name__)
         widget_text = widget_text().replace('&', '') if callable(widget_text) else str(widget_text).replace('&', '')
-        logger.debug(f"Добавление виджета '{widget_text}' в тулбар (секция '{section_path}')")
+        logger.debug(f"Adding widget '{widget_text}' to toolbar (section '{section_path}')")
         if isinstance(widget, QAction):
             target_toolbar.addAction(widget)
         else:
@@ -212,24 +212,24 @@ class UIManager:
             else:
                 self.status_bar.showMessage(message)
         else:
-            logger.warning("StatusBar не инициализирован.")
+            logger.warning("StatusBar not initialized.")
 
     def show_about_dialog(self):
-        """Показывает диалог 'О программе' с информацией о профиле и плагинах."""
+        """Shows the 'About' dialog with profile and plugin information."""
         try:
             app_core = cast('AppCore', self.main_window)
-            profile_meta = app_core.profile_metadata  # Получаем метаданные профиля
-            # --- ИЗМЕНЕНО: Используем title и author из метаданных профиля ---
-            profile_title = profile_meta.get("title", app_core.profile_name)  # Fallback на имя файла
-            profile_author = profile_meta.get("author", app_core.APP_AUTHOR)  # Fallback на константу
+            profile_meta = app_core.profile_metadata
+            # --- CHANGED: Use title and author from profile metadata ---
+            profile_title = profile_meta.get("title", app_core.profile_name)  # Fallback to file name
+            profile_author = profile_meta.get("author", app_core.APP_AUTHOR)  # Fallback to constant
             profile_version = profile_meta.get("version", "N/A")
-            # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            # --- END CHANGE ---
 
             plugin_manager: Optional['PluginManager'] = getattr(app_core, 'plugin_manager', None)
             loaded_plugins = plugin_manager.loaded_plugins if plugin_manager else {}
             from .. import __version__ as lib_version
         except (ImportError, AttributeError, NameError) as e:
-            logger.error(f"Ошибка получения данных для 'О программе': {e}")
+            logger.error(f"Error getting data for 'About': {e}")
             lib_version = "N/A";
             profile_title = "N/A";
             profile_author = "Unknown";
@@ -237,26 +237,26 @@ class UIManager:
             loaded_plugins = {}
 
         about_text_lines = [
-            f"<b>just-gui Библиотека</b>",
-            f"Версия: {lib_version}",
+            f"<b>just-gui Library</b>",
+            f"Version: {lib_version}",
             f"(c) 2025",
             "<hr>",
-            f"<b>Профиль: {profile_title}</b>",
-            f"Версия: {profile_version}",
-            f"Автор: {profile_author}",
+            f"<b>Profile: {profile_title}</b>",
+            f"Version: {profile_version}",
+            f"Author: {profile_author}",
             f"<br>",
-            f"<b>Загруженные плагины ({len(loaded_plugins)}):</b>"
+            f"<b>Loaded Plugins ({len(loaded_plugins)}):</b>"
         ]
 
         if loaded_plugins:
             plugin_list_lines = []
             sorted_plugins = sorted(loaded_plugins.values(), key=lambda p: p.title.lower())
             for plugin in sorted_plugins:
-                author_info = f" (Автор: {plugin.author})" if plugin.author else ""
+                author_info = f" (Author: {plugin.author})" if plugin.author else ""
                 plugin_list_lines.append(f"<li><b>{plugin.title}</b> (v{plugin.version}){author_info}</li>")
             about_text_lines.append(f"<ul>{''.join(plugin_list_lines)}</ul>")
         else:
-            about_text_lines.append("Нет загруженных плагинов.")
+            about_text_lines.append("No plugins loaded.")
 
         full_about_text = "<br>".join(about_text_lines)
-        QMessageBox.about(self.main_window, f"О программе: {profile_title}", full_about_text)
+        QMessageBox.about(self.main_window, f"About: {profile_title}", full_about_text)

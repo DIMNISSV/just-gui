@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 class AppCore(QMainWindow):
     """
-    Главный класс приложения just-gui.
-    Оркестрирует взаимодействие между менеджерами.
+    The main class of the just-gui application.
+    Orchestrates interaction between managers.
     """
     APP_NAME = APP_NAME
     APP_AUTHOR = APP_AUTHOR
@@ -46,7 +46,7 @@ class AppCore(QMainWindow):
         self.ui_manager = UIManager(main_window=self)
         self.ui_manager.initialize_ui()
         self.view_manager = ViewManager(app_core=self, ui_manager=self.ui_manager, parent=self)
-        self.view_manager._add_menu_actions()  # Должно быть после инициализации UI
+        self.view_manager._add_menu_actions()
         self.plugin_manager = PluginManager(
             app_core=self, state_manager=self.state_manager, event_bus=self.event_bus
         )
@@ -58,49 +58,44 @@ class AppCore(QMainWindow):
         logger.debug(f"AppCore ({self.profile_name}): __init__ complete.")
 
     async def initialize(self):
-        """Асинхронная инициализация."""
+        """Asynchronous initialization."""
         logger.info(f"AppCore ({self.profile_name}): Starting async initialization...")
         critical_error = None
         try:
             await self.plugin_manager.load_profile(str(self.profile_path))
         except Exception as e:
-            logger.error(f"Критическая ошибка загрузки профиля '{self.profile_name}': {e}", exc_info=True)
+            logger.error(f"Critical error loading profile '{self.profile_name}': {e}", exc_info=True)
             critical_error = e
 
         try:
             self.view_manager.update_view_menu()
-            # Пытаемся загрузить состояние вида
-            view_loaded = self.view_manager.load_view_state()  # Теперь возвращает bool
+            view_loaded = self.view_manager.load_view_state()
 
-            # --- ИЗМЕНЕНО: Открываем все вкладки, если вид не был загружен ---
             if not view_loaded:
-                logger.info("Сохраненный вид не найден или пуст. Открытие всех доступных представлений по умолчанию...")
+                logger.info("Saved view not found or empty. Opening all available views by default...")
                 self.view_manager.open_all_declared_views()
-            # --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
         except Exception as e:
-            logger.error(f"Ошибка при обновлении/загрузке вида: {e}", exc_info=True)
+            logger.error(f"Error updating/loading view: {e}", exc_info=True)
             if not critical_error:
-                QMessageBox.warning(self, "Ошибка вида", f"Не удалось обновить или загрузить состояние вида:\n{e}")
+                QMessageBox.warning(self, "View Error", f"Failed to update or load view state:\n{e}")
 
         logger.info(f"AppCore ({self.profile_name}): Async initialization complete.")
         if critical_error:
-            QMessageBox.critical(self, "Ошибка загрузки профиля",
-                                 f"Произошла критическая ошибка при загрузке плагинов:\n{critical_error}\n\n"
-                                 "Некоторые функции могут быть недоступны.")
+            QMessageBox.critical(self, "Profile Loading Error",
+                                 f"A critical error occurred while loading plugins:\n{critical_error}\n\n"
+                                 "Some functionality may be unavailable.")
 
-        # Обновляем статус, если ни одной вкладки так и не открылось (даже по умолчанию)
         if self.view_manager.tab_widget and self.view_manager.tab_widget.count() == 0:
-            self.update_status("Плагины загружены, но доступных представлений нет или их не удалось открыть.", 5000)
-        elif not critical_error:  # Если нет крит. ошибок и вкладки открыты
-            self.update_status("Готово", 3000)
+            self.update_status("Plugins loaded, but no views available or failed to open.", 5000)
+        elif not critical_error:
+            self.update_status("Ready", 3000)
 
     def _load_app_config(self):
-
-        logger.debug(f"Загрузка конфигурации приложения из {self.profile_path}")
+        logger.debug(f"Loading application configuration from {self.profile_path}")
         try:
             if not self.profile_path.is_file():
-                logger.warning(f"Файл профиля не найден: {self.profile_path}.")
+                logger.warning(f"Profile file not found: {self.profile_path}.")
                 self.config = {}
                 return
             profile_data = load_toml(self.profile_path)
@@ -117,63 +112,73 @@ class AppCore(QMainWindow):
                     handler.setFormatter(formatter)
                     package_logger.addHandler(handler)
                     package_logger.propagate = False
-                logger.info(f"Уровень логирования 'just_gui': {log_level_str}")
+                logger.info(f"'just_gui' logging level: {log_level_str}")
             except AttributeError:
-                logger.warning(f"Неверный уровень логирования '{log_level_str}'.")
+                logger.warning(f"Invalid logging level '{log_level_str}'.")
                 logging.getLogger(
                     'just_gui').setLevel(logging.INFO)
         except ConfigError as e:
-            logger.warning(f"Ошибка загрузки конфига: {e}.")
+            logger.warning(f"Config loading error: {e}.")
             self.config = {}
         except Exception as e:
-            logger.error(f"Непредвиденная ошибка загрузки конфига: {e}", exc_info=True)
+            logger.error(f"Unexpected config loading error: {e}", exc_info=True)
             self.config = {}
 
     def closeEvent(self, event):
-
-        logger.info(f"AppCore ({self.profile_name}): Получено событие закрытия.")
+        logger.info(f"AppCore ({self.profile_name}): Received close event.")
         if hasattr(self, 'view_manager') and self.view_manager:
             self.view_manager.save_view_state()
         else:
-            logger.warning("ViewManager не найден при закрытии.")
+            logger.warning("ViewManager not found on close.")
         if hasattr(self, 'plugin_manager') and self.plugin_manager:
             try:
                 self.plugin_manager.unload_all()
             except Exception as e:
-                logger.error(f"Ошибка выгрузки плагинов: {e}", exc_info=True)
+                logger.error(f"Error unloading plugins: {e}", exc_info=True)
         else:
-            logger.warning("PluginManager не найден при закрытии.")
+            logger.warning("PluginManager not found on close.")
         event.accept()
-        logger.info(f"AppCore ({self.profile_name}): Приложение завершает работу.")
+        logger.info(f"AppCore ({self.profile_name}): Application is shutting down.")
 
     def update_status(self, message: str, timeout: int = 0):
-
-        if hasattr(self, 'ui_manager') and self.ui_manager: self.ui_manager.update_status(message, timeout)
+        """
+        Updates the status bar message.
+        """
+        if hasattr(self, 'ui_manager') and self.ui_manager:
+            self.ui_manager.update_status(message, timeout)
 
     def declare_view(self, plugin_name: str, view_id: str, name: str, factory: 'ViewFactory'):
-
+        """
+        Declares a view provided by a plugin.
+        """
         if hasattr(self, 'view_manager') and self.view_manager:
             self.view_manager.declare_view(plugin_name, view_id, name, factory)
         else:
-            logger.error("ViewManager не инициализирован.")
+            logger.error("ViewManager is not initialized.")
 
     def register_menu_action(self, plugin_name: str, menu_path: str, action: 'QAction'):
-
+        """
+        Registers a QAction under a specific menu path.
+        """
         if hasattr(self, 'ui_manager') and self.ui_manager:
             self.ui_manager.register_menu_action(plugin_name, menu_path, action)
         else:
-            logger.error("UIManager не инициализирован.")
+            logger.error("UIManager is not initialized.")
 
     def register_toolbar_widget(self, section_path: str, widget: 'QWidget'):
-
+        """
+        Registers a QWidget in a specific toolbar section.
+        """
         if hasattr(self, 'ui_manager') and self.ui_manager:
             self.ui_manager.register_toolbar_widget(section_path, widget)
         else:
-            logger.error("UIManager не инициализирован.")
+            logger.error("UIManager is not initialized.")
 
     @property
     def view_state_file(self) -> Path:
-
+        """
+        Provides the path to the file where the view state for the current profile is saved.
+        """
         config_dir = Path(platformdirs.user_config_dir(self.APP_NAME, self.APP_AUTHOR))
         profile_view_dir = config_dir / "profiles" / self.profile_name
         profile_view_dir.mkdir(parents=True, exist_ok=True)

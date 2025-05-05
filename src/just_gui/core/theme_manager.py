@@ -6,27 +6,24 @@ logger = logging.getLogger(__name__)
 
 
 def apply_theme(target_widget: QWidget, theme_name: str):
-    """Применяет цветовую тему к указанному виджету."""
-    logger.info(f"Применение темы '{theme_name}'...")
+    """Applies a color theme to the specified widget."""
+    logger.info(f"Applying theme '{theme_name}'...")
     style = ""
-    theme_applied_source = "system"  # Источник примененной темы
+    theme_applied_source = "system"
 
     try:
-        # Сначала пробуем qdarktheme
         import qdarktheme
         valid_qdark_themes = ["dark", "light"]
         if theme_name.lower() in valid_qdark_themes:
             style = qdarktheme.load_stylesheet(theme_name.lower())
             theme_applied_source = f"qdarktheme ({theme_name})"
-            logger.info(f"Применена тема qdarktheme '{theme_name}'.")
+            logger.info(f"Applied qdarktheme '{theme_name}'.")
         else:
             logger.warning(
-                f"Тема '{theme_name}' не поддерживается qdarktheme (ожидалось 'light' или 'dark'). Используется системная тема.")
-            style = ""  # Возврат к системной теме
-            # qdarktheme.setup() # Можно попробовать сбросить qdarktheme
+                f"Theme '{theme_name}' is not supported by qdarktheme (expected 'light' or 'dark'). Using system theme.")
+            style = ""
     except ImportError:
-        # qdarktheme не установлен, используем базовые стили
-        logger.warning("Библиотека qdarktheme не найдена. Применяется базовый стиль.")
+        logger.warning("qdarktheme library not found. Applying basic style.")
         if theme_name.lower() == "dark":
             style = """
                 QWidget { background-color: #2d2d2d; color: #f0f0f0; border: none; }
@@ -51,13 +48,13 @@ def apply_theme(target_widget: QWidget, theme_name: str):
             """
             theme_applied_source = "basic dark"
         else:
-            style = ""  # Системная/светлая тема
+            style = ""
             theme_applied_source = "system/basic light"
-            logger.info("Применена системная тема (светлая).")
+            logger.info("Applied system theme (light).")
 
     try:
         target_widget.setStyleSheet(style)
     except Exception as e:
-        logger.error(f"Ошибка применения стиля темы '{theme_name}': {e}", exc_info=True)
+        logger.error(f"Error applying theme style '{theme_name}': {e}", exc_info=True)
 
-    logger.debug(f"Источник примененной темы: {theme_applied_source}")
+    logger.debug(f"Source of applied theme: {theme_applied_source}")
