@@ -230,16 +230,17 @@ class UIManager:
             from .. import __version__ as lib_version
         except (ImportError, AttributeError, NameError) as e:
             logger.error(f"Error getting data for 'About': {e}")
-            lib_version = "N/A";
-            profile_title = "N/A";
-            profile_author = "Unknown";
-            profile_version = "N/A";
+            lib_version = "N/A"
+            profile_title = "N/A"
+            profile_author = "Unknown"
+            profile_version = "N/A"
             loaded_plugins = {}
 
         about_text_lines = [
             f"<b>just-gui Library</b>",
             f"Version: {lib_version}",
-            f"(c) 2025",
+            f"© 2025 DIMNISSV. MIT License.",
+            f"<a href=\"https://github.com/DIMNISSV/just-gui\">GitHub</a>",
             "<hr>",
             f"<b>Profile: {profile_title}</b>",
             f"Version: {profile_version}",
