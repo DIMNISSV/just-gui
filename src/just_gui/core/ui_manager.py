@@ -63,20 +63,20 @@ class UIManager:
         assert self.menu_bar is not None
 
         file_menu = self.menu_bar.addMenu("&File")
-        self._all_menus_cache["Файл"] = file_menu
+        self._all_menus_cache["File"] = file_menu
         exit_icon = QIcon.fromTheme("application-exit")
         exit_action = QAction(exit_icon, "&Exit", self.main_window)
         exit_action.triggered.connect(self.main_window.close)
         file_menu.addAction(exit_action)  # Add Exit to the end
 
         self._view_menu = self.menu_bar.addMenu("&View")
-        self._all_menus_cache["Вид"] = self._view_menu
+        self._all_menus_cache["View"] = self._view_menu
 
         tools_menu = self.menu_bar.addMenu("&Tools")
-        self._all_menus_cache["Инструменты"] = tools_menu
+        self._all_menus_cache["Tools"] = tools_menu
 
         help_menu = self.menu_bar.addMenu("&Help")
-        self._all_menus_cache["Помощь"] = help_menu
+        self._all_menus_cache["Help"] = help_menu
         about_icon = QIcon.fromTheme("help-about")
         about_action = QAction(about_icon, "&About", self.main_window)
         about_action.triggered.connect(self.show_about_dialog)

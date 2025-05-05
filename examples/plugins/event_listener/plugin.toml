@@ -1,7 +1,7 @@
 [metadata]
 name = "event_listener"
 entry_point = "listener:ListenerPlugin"
-version = "0.1.0"
-title = "Слушатель событий"
+version = "0.2.0"
+title = "Listor of events"
 author = "dimnissv"
-description = "Плагин отображающий в логе изменения счётчика."
+description = "Plugin displaying meter changes in the log."

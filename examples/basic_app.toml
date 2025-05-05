@@ -1,9 +1,9 @@
 # examples/basic_app.toml
 [profile_metadata]
-title = "Базовое Демо Приложение"
+title = "Basic demo application"
 author = "dimnissv"
-version = "0.1.0-beta"
-description = "Пример профиля с основными плагинами."
+version = "0.2.0-beta"
+description = "An example of a profile with the main plugins."
 
 
 [plugins]
@@ -15,13 +15,13 @@ local = [
 
 
 [config]
-theme = "light" # или "dark"
+theme = "light"
 log_level = "DEBUG"
 
 [plugin_configs.simple_counter]
 initial_value = 10
 step = 2
 
-# Секция зависимостей (пока не используется для сортировки)
+# Dependencies section (not yet used for sorting)
 # [plugins.dependencies]
 # simple_counter = "0.1.0"

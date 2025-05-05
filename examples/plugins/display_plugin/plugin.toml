@@ -1,10 +1,10 @@
 [metadata]
 name = "display_plugin"
 entry_point = "display_plugin:DisplayPlugin"
-version = "0.2.0"
-title = "Отображатель счётчика"
+version = "0.3.0"
+title = "Counter displayer"
 author = "dimnissv"
-description = "Плагин отображающий в новой вкладке изменения счётчика."
+description = "Plugin displaying meter changes in the new tab."
 
 # Указываем зависимость от simple_counter, чтобы он загрузился первым
 # (Хотя StateManager и так позволяет работать без строгой зависимости)
