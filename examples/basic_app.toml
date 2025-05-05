@@ -2,7 +2,7 @@
 [profile_metadata]
 title = "Базовое Демо Приложение"
 author = "dimnissv"
-version = "0.1.0-alpha"
+version = "0.1.0-beta"
 description = "Пример профиля с основными плагинами."
 
 

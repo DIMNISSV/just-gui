@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "just-gui"
-version = "0.0.1-alpha.0"
+version = "0.1.0-beta"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["dimnissv <dimnissv@yabdex.kz>"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "just_gui", from = "src"}]
@@ -22,7 +22,7 @@ pytest-qt = "^4.2.0"
 pytest-asyncio = "^0.21.0"
 
 [tool.poetry.extras]
-git = ["aiohttp"] # или ["GitPython"]
+git = ["aiohttp"]
 
 [build-system]
 requires = ["poetry-core"]
