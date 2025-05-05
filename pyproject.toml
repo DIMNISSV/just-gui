@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "just-gui"
+version = "0.0.1-alpha"
+description = ""
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "just_gui", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+PySide6 = "^6.9.0"
+toml = "^0.10.2"
+aiohttp = {version = "^3.8.4", optional = true}
+qasync = "^0.24.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
+pytest-qt = "^4.2.0"
+pytest-asyncio = "^0.21.0"
+
+[tool.poetry.extras]
+git = ["aiohttp"] # или ["GitPython"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+just-gui = "just_gui.core.cli:main"
