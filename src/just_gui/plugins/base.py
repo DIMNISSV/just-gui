@@ -2,12 +2,10 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional, Callable  # Добавили Callable
+from typing import TYPE_CHECKING, Any, Dict, Optional, Callable
 
-# Импортируем QWidget для type hinting фабрики
 from PySide6.QtWidgets import QWidget
 
-# Предотвращение циклических импортов с помощью TYPE_CHECKING
 if TYPE_CHECKING:
     from ..state.manager import StateManager
     from ..events.bus import EventBus
@@ -15,26 +13,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# --- Новый тип: Фабричный метод для создания виджета представления ---
 ViewFactory = Callable[[], QWidget]
 
 
 @dataclass
 class PluginContext:
-    """Контекст, передаваемый плагину при инициализации."""
+    """Context passed to the plugin upon initialization."""
     plugin_name: str
     plugin_version: str
-    plugin_config: Dict[str, Any]  # Конфигурация из app_profile[plugin_configs]
+    plugin_config: Dict[str, Any]
     state_manager: 'StateManager'
     event_bus: 'EventBus'
-    app_core: 'AppCore'  # Доступ к ядру для регистрации UI и других действий
-    plugin_permissions: Dict[str, Any] = field(default_factory=dict)  # Разрешения из plugin.toml[permissions]
-    plugin_title: Optional[str] = None  # Отображаемое имя (из metadata.title)
-    plugin_author: Optional[str] = None  # Автор плагина (из metadata.author)
-    plugin_description: Optional[str] = None  # Описание (из metadata.description)
+    app_core: 'AppCore'
+    plugin_permissions: Dict[str, Any] = field(default_factory=dict)
+    plugin_title: Optional[str] = None
+    plugin_author: Optional[str] = None
+    plugin_description: Optional[str] = None
 
     def get_config(self, key: str, default: Any = None) -> Any:
-        """Удобный метод для получения конфигурации плагина."""
+        """Convenience method for getting plugin configuration."""
         keys = key.split('.')
         value = self.plugin_config
         try:
@@ -43,125 +40,109 @@ class PluginContext:
                     value = value[k]
                 else:
                     logger.debug(
-                        f"Ключ '{k}' не найден или не является словарем в конфигурации плагина '{self.plugin_name}' при поиске '{key}'")
+                        f"Key '{k}' not found or is not a dictionary in plugin '{self.plugin_name}' configuration when searching for '{key}'")
                     return default
             return value
         except KeyError:
-            logger.debug(f"Ключ '{keys[-1]}' не найден в конфигурации плагина '{self.plugin_name}' при поиске '{key}'")
+            logger.debug(
+                f"Key '{keys[-1]}' not found in plugin '{self.plugin_name}' configuration when searching for '{key}'")
             return default
         except Exception as e:
             logger.warning(
-                f"Неожиданная ошибка при получении конфигурации '{key}' для плагина '{self.plugin_name}': {e}")
+                f"Unexpected error getting configuration '{key}' for plugin '{self.plugin_name}': {e}")
             return default
 
     def has_permission(self, *permission_parts: str) -> bool:
         """
-        Проверяет, имеет ли плагин указанное разрешение.
-        ПОКА ЗАГЛУШКА. В будущем будет проверять self.plugin_permissions.
-        Пример: context.has_permission("filesystem", "read", "/data/images")
+        Checks if the plugin has the specified permission.
+        CURRENTLY A STUB. Will check self.plugin_permissions in the future.
+        Example: context.has_permission("filesystem", "read", "/data/images")
         """
         permission_key = ".".join(permission_parts)
         logger.warning(
-            f"[SECURITY STUB] Проверка разрешения '{permission_key}' для плагина '{self.plugin_name}' всегда возвращает True.")
-        # Реальная логика будет сложнее, должна парсить self.plugin_permissions
-        # и сравнивать запрошенное разрешение с выданными.
-        # current_perms = self.plugin_permissions
-        # try:
-        #     for part in permission_parts[:-1]:
-        #         current_perms = current_perms[part]
-        #     last_part = permission_parts[-1]
-        #     # Логика проверки значения (может быть bool, список путей, и т.д.)
-        #     # return last_part in current_perms # Очень упрощенно
-        # except (KeyError, TypeError):
-        #      return False
-        return True  # ЗАГЛУШКА
+            f"[SECURITY STUB] Permission check '{permission_key}' for plugin '{self.plugin_name}' always returns True.")
 
-    # TODO: Добавить метод для доступа к ресурсам плагина (get_resource)
+        return True
+
+    # TODO: Add a method for accessing plugin resources (get_resource)
 
 
 class BasePlugin(ABC):
-    """Абстрактный базовый класс для всех плагинов."""
+    """Abstract base class for all plugins."""
 
     def __init__(self, context: PluginContext):
         self.context = context
         self.name = context.plugin_name
         self.version = context.plugin_version
-        self._state = context.state_manager  # Удобный доступ
-        self._bus = context.event_bus  # Удобный доступ
-        self._app = context.app_core  # Удобный доступ
-        self._config = context.plugin_config  # Удобный доступ
-        self._permissions = context.plugin_permissions  # Удобный доступ
+        self._state = context.state_manager
+        self._bus = context.event_bus
+        self._app = context.app_core
+        self._config = context.plugin_config
+        self._permissions = context.plugin_permissions
         self.title = context.plugin_title if context.plugin_title else self.name
         self.author = context.plugin_author
         self.description = context.plugin_description
 
-        logger.info(f"Инициализирован плагин: {self.name} v{self.version}")
+        logger.info(f"Plugin initialized: {self.name} v{self.version}")
 
     def get_config(self, key: str, default: Any = None) -> Any:
-        """Получает параметр конфигурации плагина."""
+        """Gets a plugin configuration parameter."""
         return self.context.get_config(key, default)
 
     def has_permission(self, *permission_parts: str) -> bool:
-        """Проверяет, имеет ли плагин запрошенное разрешение."""
+        """Checks if the plugin has the requested permission."""
         return self.context.has_permission(*permission_parts)
 
-    # --- Методы жизненного цикла ---
+    # --- Lifecycle Methods ---
     @abstractmethod
     def on_load(self):
         """
-        Вызывается после успешной загрузки плагина.
-        Здесь следует выполнять инициализацию, подписку на события,
-        объявление представлений и регистрацию действий в меню/тулбаре.
+        Called after the plugin is successfully loaded.
+        Initialization, event subscription, view declaration,
+        and menu/toolbar action registration should be done here.
         """
-        logger.debug(f"Плагин '{self.name}': Вызван on_load()")
+        logger.debug(f"Plugin '{self.name}': on_load() called")
         pass
 
     def on_unload(self):
         """
-        Вызывается перед выгрузкой плагина.
-        Здесь следует выполнять очистку ресурсов, отписку от событий.
-        Виджеты представлений будут удалены AppCore.
+        Called before the plugin is unloaded.
+        Resource cleanup and event unsubscription should be done here.
+        View widgets will be removed by AppCore.
         """
-        logger.debug(f"Плагин '{self.name}': Вызван on_unload()")
+        logger.debug(f"Plugin '{self.name}': on_unload() called")
         pass
 
-    # --- НОВЫЙ МЕТОД: Объявление представления ---
     def declare_view(self, view_id: str, name: str, factory: ViewFactory):
         """
-        Объявляет представление (виджет), которое может быть открыто пользователем
-        (например, как вкладка или док-виджет).
+        Declares a view (widget) that can be opened by the user
+        (e.g., as a tab or a dock widget).
 
         Args:
-            view_id: Уникальный идентификатор представления в рамках плагина (e.g., "main_editor").
-            name: Имя, отображаемое пользователю (e.g., "Редактор").
-            factory: Функция (без аргументов), которая создает и возвращает
-                     новый экземпляр QWidget для этого представления.
+            view_id: A unique identifier for the view within the plugin (e.g., "main_editor").
+            name: The name displayed to the user (e.g., "Editor").
+            factory: A function (no arguments) that creates and returns
+                     a new QWidget instance for this view.
         """
-        logger.debug(f"Плагин '{self.name}': Объявление представления view_id='{view_id}', name='{name}'")
+        logger.debug(f"Plugin '{self.name}': Declaring view view_id='{view_id}', name='{name}'")
         self._app.declare_view(self.name, view_id, name, factory)
 
-    # --- Старые методы регистрации UI (теперь для действий, а не представлений) ---
-    def register_menu_action(self, menu_path: str, action):  # action - это QAction
-        """Регистрирует действие плагина в главном меню."""
-        logger.debug(f"Плагин '{self.name}': Регистрация действия меню '{menu_path}'")
-        # Проверка типа action для предотвращения ошибок
-        if not hasattr(action, 'triggered'):  # Простая проверка на QAction-подобный объект
+    def register_menu_action(self, menu_path: str, action):
+        """Registers a plugin action in the main menu."""
+        logger.debug(f"Plugin '{self.name}': Registering menu action '{menu_path}'")
+        if not hasattr(action, 'triggered'):
             logger.error(
-                f"Плагин '{self.name}': Попытка зарегистрировать не QAction в меню '{menu_path}'. Тип: {type(action)}")
+                f"Plugin '{self.name}': Attempting to register non-QAction in menu '{menu_path}'. Type: {type(action)}")
             return
         self._app.register_menu_action(self.name, menu_path, action)
 
-    def register_toolbar_widget(self, widget, section: Optional[str] = None):  # widget - QWidget
-        """Регистрирует виджет на панели инструментов."""
+    def register_toolbar_widget(self, widget, section: Optional[str] = None):
+        """Registers a widget on the toolbar."""
         section_name = section or "Default"
-        logger.debug(f"Плагин '{self.name}': Регистрация виджета тулбара в секции '{section_name}'")
-        # Добавляем имя плагина как префикс к секции для избежания конфликтов
+        logger.debug(f"Plugin '{self.name}': Registering toolbar widget in section '{section_name}'")
         full_section = f"{self.name}/{section_name}"
         self._app.register_toolbar_widget(full_section, widget)
 
     def update_status(self, message: str, timeout: int = 0):
-        """Обновляет сообщение в строке состояния."""
-        # logger.debug(f"Плагин '{self.name}': Обновление статуса: '{message}'")
+        """Updates the message in the status bar."""
         self._app.update_status(f"[{self.name}] {message}", timeout)
-
-    # Добавить другие методы регистрации по необходимости (док-виджеты, и т.д.)

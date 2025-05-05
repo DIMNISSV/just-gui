@@ -5,34 +5,31 @@ from typing import List, Set, Tuple, Dict
 
 logger = logging.getLogger(__name__)
 
-# ЗАГЛУШКА: Список пока простой, без детальной конфигурации
 DEFAULT_DANGEROUS_MODULES: Set[str] = {
     "os",
     "subprocess",
-    # "socket", # Разрешать или нет? Зависит от разрешений
     "ctypes",
-    "sys",  # Импорт sys сам по себе не опасен, но доступ к __dict__ и т.д. - да
-    "_thread",  # Прямое использование потоков может быть рискованным
+    "sys",
+    "_thread",
 }
 
-# ЗАГЛУШКА: Проверка вызовов пока не реализована
 DEFAULT_DANGEROUS_CALLS: Dict[str, Set[str]] = {
     "os": {"system", "execv", "execl", "spawn", "remove", "unlink", "rmdir"},
     "subprocess": {"run", "call", "check_call", "check_output", "Popen"},
-    "builtins": {"eval", "exec"},  # Встроенные функции
+    "builtins": {"eval", "exec"},
     "shutil": {"rmtree"},
 }
 
 
 class PluginValidationError(Exception):
-    """Ошибка валидации кода плагина."""
+    """Plugin code validation error."""
     pass
 
 
 class AstValidator(ast.NodeVisitor):
     """
-    Посетитель AST для поиска потенциально опасных конструкций.
-    ПОКА РЕАЛИЗОВАНО ТОЛЬКО ОБНАРУЖЕНИЕ ИМПОРТА ЗАПРЕЩЕННЫХ МОДУЛЕЙ.
+    AST visitor to find potentially dangerous constructs.
+    CURRENTLY ONLY DETECTS IMPORTS OF FORBIDDEN MODULES.
     """
 
     def __init__(self, dangerous_modules: Set[str] = DEFAULT_DANGEROUS_MODULES):
@@ -42,52 +39,48 @@ class AstValidator(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import):
         for alias in node.names:
             if alias.name in self.dangerous_modules:
-                msg = f"Импорт запрещенного модуля: '{alias.name}'"
+                msg = f"Import of forbidden module: '{alias.name}'"
                 self.errors.append((node.lineno, node.col_offset, msg))
-                logger.warning(f"[SECURITY STUB] {msg} в строке {node.lineno}")
-        self.generic_visit(node)  # Продолжаем обход
+                logger.warning(f"[SECURITY STUB] {msg} on line {node.lineno}")
+        self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
         if node.module and node.module in self.dangerous_modules:
-            msg = f"Импорт из запрещенного модуля: '{node.module}'"
+            msg = f"Import from forbidden module: '{node.module}'"
             self.errors.append((node.lineno, node.col_offset, msg))
-            logger.warning(f"[SECURITY STUB] {msg} в строке {node.lineno}")
-        # TODO: Проверять импорт конкретных опасных имен из разрешенных модулей
+            logger.warning(f"[SECURITY STUB] {msg} on line {node.lineno}")
         self.generic_visit(node)
-
-    # TODO: Реализовать visit_Call для поиска опасных вызовов (DEFAULT_DANGEROUS_CALLS)
-    # Это сложнее, нужно отслеживать, откуда пришла функция (импорты, псевдонимы)
 
 
 def validate_plugin_ast(code_string: str) -> bool:
     """
-    Выполняет статическую проверку AST кода плагина на базовые опасные конструкции.
-    ПОКА ПРОВЕРЯЕТ ТОЛЬКО ИМПОРТЫ.
+    Performs static AST validation of plugin code for basic dangerous constructs.
+    CURRENTLY ONLY CHECKS IMPORTS.
 
     Args:
-        code_string: Исходный код плагина в виде строки.
+        code_string: The plugin's source code as a string.
 
     Returns:
-        True, если проверка пройдена (опасные конструкции не найдены), False иначе.
+        True if validation passes (dangerous constructs not found), False otherwise.
 
     Raises:
-        SyntaxError: Если код невалиден и не может быть распарсен.
+        SyntaxError: If the code is invalid and cannot be parsed.
     """
-    logger.info("[SECURITY STUB] Запуск базовой AST валидации...")
+    logger.info("[SECURITY STUB] Starting basic AST validation...")
     try:
         tree = ast.parse(code_string)
         validator = AstValidator()
         validator.visit(tree)
 
         if validator.errors:
-            logger.error("[SECURITY STUB] AST валидация провалена. Найдены проблемы:")
+            logger.error("[SECURITY STUB] AST validation failed. Issues found:")
             for lineno, col, msg in validator.errors:
-                logger.error(f"  - Строка {lineno}, позиция {col}: {msg}")
-            return False  # Валидация не пройдена
+                logger.error(f"  - Line {lineno}, position {col}: {msg}")
+            return False # Validation failed
         else:
-            logger.info("[SECURITY STUB] Базовая AST валидация пройдена успешно.")
-            return True  # Валидация пройдена
+            logger.info("[SECURITY STUB] Basic AST validation passed successfully.")
+            return True # Validation passed
 
     except SyntaxError as e:
-        logger.error(f"Синтаксическая ошибка при AST валидации: {e}", exc_info=True)
-        raise  # Перевыбрасываем ошибку синтаксиса
+        logger.error(f"Syntax error during AST validation: {e}", exc_info=True)
+        raise # Re-raise the syntax error
