@@ -39,8 +39,8 @@ class ViewManager(QObject):
 
     def _add_menu_actions(self):
         """Adds static actions to the 'File' and 'View' menus."""
-        file_menu = self.ui_manager.find_or_create_menu("Файл")
-        if file_menu and not any(a.text() == "Сохранить &вид" for a in file_menu.actions()):
+        file_menu = self.ui_manager.find_or_create_menu("File")
+        if file_menu and not any(a.text() == "Сохранить &View" for a in file_menu.actions()):
             save_view_action = QAction(QIcon.fromTheme("document-save"), "Save &View", self.app_core)
             save_view_action.triggered.connect(self.save_view_state)
             target_action = next((act for act in reversed(file_menu.actions()) if not act.isSeparator()), None)
@@ -51,8 +51,8 @@ class ViewManager(QObject):
                 file_menu.addSeparator()
                 file_menu.addAction(save_view_action)
 
-        view_menu = self.ui_manager.find_or_create_menu("Вид")
-        if view_menu and not any(a.text() == "&Сбросить вид" for a in view_menu.actions()):
+        view_menu = self.ui_manager.find_or_create_menu("View")
+        if view_menu and not any(a.text() == "&Reset View" for a in view_menu.actions()):
             separator = next((act for act in view_menu.actions() if act.isSeparator()),
                              None) or view_menu.addSeparator()
             reset_view_action = QAction(QIcon.fromTheme("view-refresh"), "&Reset View", self.app_core)
@@ -92,7 +92,7 @@ class ViewManager(QObject):
                 current_action = None
 
         for action in dynamic_actions:
-            view_menu.removeAction(action);
+            view_menu.removeAction(action)
             action.deleteLater()
 
         added_items = False
@@ -109,15 +109,17 @@ class ViewManager(QObject):
 
             plugin = loaded_plugins_map[plugin_name]
             plugin_display_name = plugin.title  # Use title
-            plugin_menu_path = f"Вид/{plugin_display_name}"  # Path with display name
+            plugin_menu_path = f"View/{plugin_display_name}"  # Path with display name
 
             submenu = self.ui_manager.find_or_create_menu(plugin_menu_path)
-            if not submenu: logger.error(f"Failed to create submenu '{plugin_display_name}' in 'Вид'."); continue
+            if not submenu: logger.error(f"Failed to create submenu '{plugin_display_name}' in 'View'."); continue
 
             submenu_action = submenu.menuAction()
             # Check if the submenu action needs to be added (if it's not already before the separator)
+
             if submenu_action and not any(
-                    a == submenu_action for a in view_menu.actions() if a != separator and a.text() != "&Сбросить вид"):
+                    a == submenu_action for a in view_menu.actions() if
+                    a != separator and a.text() != "&Restore view"):
                 actions_to_insert.append(submenu_action)
 
             submenu.clear()
@@ -132,7 +134,7 @@ class ViewManager(QObject):
         if actions_to_insert:
             for action_to_insert in reversed(actions_to_insert): view_menu.insertAction(separator, action_to_insert)
         # Check if only static elements remain
-        elif not any(not a.isSeparator() and not a.text().endswith("Сбросить вид") for a in view_menu.actions()):
+        elif not any(not a.isSeparator() and not a.text().endswith("Reset View") for a in view_menu.actions()):
             no_views_action = QAction("No views available", self.app_core);
             no_views_action.setEnabled(False)
             view_menu.insertAction(separator, no_views_action)
